@@ -6,7 +6,7 @@ The **Knight's Tour** problem is a classic challenge in chess and computer scien
 
 This repository provides an implementation of the Knight's Tour problem using a **backtracking algorithm**, which explores all possible moves recursively to find a valid path.
 
-## Live Site
+## Live Demo Page
 
 https://jdbsolution.github.io/knight-tour/
 
