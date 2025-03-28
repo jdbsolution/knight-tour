@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Knight's Tour Visualization</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .controls {
+            margin-bottom: 20px;
+        }
+
+        button {
+            padding: 8px 16px;
+            margin: 0 10px;
+            font-size: 16px;
+            cursor: pointer;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+        }
+
+        button:hover {
+            background-color: #45a049;
+        }
+
+        #chessboard {
+            display: grid;
+            grid-template-columns: repeat(8, 60px);
+            grid-template-rows: repeat(8, 60px);
+            gap: 1px;
+            border: 2px solid #333;
+            position: relative;
+        }
+
+        .square {
+            width: 60px;
+            height: 60px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 14px;
+            font-weight: bold;
+            position: relative;
+            box-sizing: border-box;
+        }
+
+        .square.light {
+            background-color: #f0d9b5;
+        }
+
+        .square.dark {
+            background-color: #b58863;
+        }
+
+        .square.visited.light {
+            background-color: #90ee90;
+        }
+
+        .square.visited.dark {
+            background-color: #4CAF50; /* Match button color */
+        }
+
+
+        .square.current {
+            background-color: rgba(255, 215, 0, 0.7);
+        }
+
+        .arrow {
+            position: absolute;
+            pointer-events: none;
+            z-index: 10;
+            opacity: 0.7;
+        }
+
+        .arrow-line {
+            position: absolute;
+            background-color: rgba(200, 0, 0, 0.7);
+            transform-origin: 0 0;
+            height: 2px;
+            z-index: 1;
+        }
+
+        .arrow-head {
+        }
+
+        .step-number {
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            font-size: 10px;
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+    <h1>Knight's Tour Visualization</h1>
+
+    <div class="controls">
+        <button id="playPauseBtn">Play</button>
+        <button id="resetBtn">Reset</button>
+    </div>
+
+    <div id="chessboard"></div>
+
+    <script>
+        const boardSize = 8;
+        const totalSquares = boardSize * boardSize;
+        let tour = [];
+        let currentStep = 0;
+        let animationInterval = null;
+        let animationSpeed = 500; // ms per step
+
+        // Initialize the board
+        function initializeBoard() {
+            const chessboard = document.getElementById('chessboard');
+            chessboard.innerHTML = '';
+
+            // Remove any existing arrows
+            document.querySelectorAll('.arrow').forEach(el => el.remove());
+
+            for (let row = 0; row < boardSize; row++) {
+                for (let col = 0; col < boardSize; col++) {
+                    const square = document.createElement('div');
+                    const squareNumber = row * boardSize + col;
+                    square.className = `square ${(row + col) % 2 === 0 ? 'light' : 'dark'}`;
+                    square.id = `square-${squareNumber}`;
+                    square.textContent = '';
+
+                    const stepNumber = document.createElement('div');
+                    stepNumber.className = 'step-number';
+                    stepNumber.textContent = squareNumber;
+                    square.appendChild(stepNumber);
+
+                    chessboard.appendChild(square);
+                }
+            }
+        }
+
+        // Find a knight's tour using Warnsdorff's algorithm
+        function findKnightTour(start) {
+            const board = Array(boardSize).fill().map(() => Array(boardSize).fill(-1));
+            const moves = [
+                [2, 1], [1, 2], [-1, 2], [-2, 1],
+                [-2, -1], [-1, -2], [1, -2], [2, -1]
+            ];
+
+            let current = start;
+            let step = 0;
+            board[current[0]][current[1]] = step++;
+
+            while (step < totalSquares) {
+                const [x, y] = current;
+                const nextMoves = [];
+
+                // Find all possible next moves
+                for (const [dx, dy] of moves) {
+                    const nx = x + dx;
+                    const ny = y + dy;
+
+                    if (nx >= 0 && nx < boardSize && ny >= 0 && ny < boardSize && board[nx][ny] === -1) {
+                        // Count the number of possible moves from this next position
+                        let count = 0;
+                        for (const [ndx, ndy] of moves) {
+                            const nnx = nx + ndx;
+                            const nny = ny + ndy;
+                            if (nnx >= 0 && nnx < boardSize && nny >= 0 && nny < boardSize && board[nnx][nny] === -1) {
+                                count++;
+                            }
+                        }
+                        nextMoves.push({ x: nx, y: ny, count });
+                    }
+                }
+
+                if (nextMoves.length === 0) {
+                    // No valid moves, tour failed
+                    return null;
+                }
+
+                // Sort by the number of onward moves (Warnsdorff's rule)
+                nextMoves.sort((a, b) => a.count - b.count);
+
+                // Choose the move with the fewest onward options
+                const next = nextMoves[0];
+                board[next.x][next.y] = step++;
+                current = [next.x, next.y];
+            }
+
+            // Convert board to a linear sequence
+            const sequence = [];
+            for (let i = 0; i < totalSquares; i++) {
+                for (let x = 0; x < boardSize; x++) {
+                    for (let y = 0; y < boardSize; y++) {
+                        if (board[x][y] === i) {
+                            sequence.push(x * boardSize + y);
+                        }
+                    }
+                }
+            }
+
+            return sequence;
+        }
+
+        // Draw an arrow between two squares
+        function drawArrow(from, to, step) {
+            const fromElement = document.getElementById(`square-${from}`);
+            const toElement = document.getElementById(`square-${to}`);
+
+            if (!fromElement || !toElement) return;
+
+            const fromRect = fromElement.getBoundingClientRect();
+            const toRect = toElement.getBoundingClientRect();
+            const chessboardRect = document.getElementById('chessboard').getBoundingClientRect();
+
+            const fromX = fromRect.left + fromRect.width / 2 - chessboardRect.left;
+            const fromY = fromRect.top + fromRect.height / 2 - chessboardRect.top;
+            const toX = toRect.left + toRect.width / 2 - chessboardRect.left;
+            const toY = toRect.top + toRect.height / 2 - chessboardRect.top;
+
+            // Create arrow container
+            const arrow = document.createElement('div');
+            arrow.className = 'arrow';
+            arrow.id = `arrow-${step}`;
+
+            // Calculate line length and angle
+            const length = Math.sqrt(Math.pow(toX - fromX, 2) + Math.pow(toY - fromY, 2));
+            const angle = Math.atan2(toY - fromY, toX - fromX) * 180 / Math.PI;
+
+            // Create line
+            const line = document.createElement('div');
+            line.className = 'arrow-line';
+            line.style.width = `${length}px`;
+            line.style.left = `${fromX}px`;
+            line.style.top = `${fromY}px`;
+            line.style.transform = `rotate(${angle}deg)`;
+
+            arrow.appendChild(line);
+            document.getElementById('chessboard').appendChild(arrow);
+        }
+
+        // Update the board visualization to a specific step
+        function updateBoard(step) {
+            // Clear all visited and current classes
+            document.querySelectorAll('.square').forEach(sq => {
+                sq.classList.remove('visited', 'current');
+                sq.textContent = '';
+            });
+
+            // Remove all arrows
+            document.querySelectorAll('.arrow').forEach(el => el.remove());
+
+            // Update squares up to the current step
+            for (let i = 0; i <= step && i < tour.length; i++) {
+                const square = document.getElementById(`square-${tour[i]}`);
+                if (square) {
+                    square.classList.add('visited');
+                    if (square.classList.contains('light')) {
+                        square.classList.add('light');
+                    }
+                    else {
+                        square.classList.add('dark');
+                    }
+
+                    square.textContent = i;
+
+                    // Draw line from previous square
+                    if (i > 0) {
+                        drawArrow(tour[i - 1], tour[i], i);
+                    }
+                }
+            }
+
+            // Highlight current square
+            if (step < tour.length) {
+                const currentSquare = document.getElementById(`square-${tour[step]}`);
+                if (currentSquare) {
+                    currentSquare.classList.add('current');
+                }
+            }
+        }
+
+        // Start or pause the animation
+        function toggleAnimation() {
+            const playPauseBtn = document.getElementById('playPauseBtn');
+
+            if (animationInterval) {
+                clearInterval(animationInterval);
+                animationInterval = null;
+                playPauseBtn.textContent = 'Play';
+            } else {
+                playPauseBtn.textContent = 'Pause';
+
+                // If we've reached the end, start over
+                if (currentStep >= tour.length - 1) {
+                    currentStep = 0;
+                }
+
+                animationInterval = setInterval(() => {
+                    if (currentStep < tour.length - 1) {
+                        currentStep++;
+                        updateBoard(currentStep);
+                    } else {
+                        clearInterval(animationInterval);
+                        playPauseBtn.textContent = 'Play';
+                    }
+                }, animationSpeed);
+            }
+        }
+
+        // Reset the board to initial state
+        function resetBoard() {
+            clearInterval(animationInterval);
+            animationInterval = null;
+            document.getElementById('playPauseBtn').textContent = 'Play';
+
+            currentStep = 0;
+            initializeBoard();
+
+            // Find a new tour starting from square 0 (top-left corner)
+            tour = findKnightTour([0, 0]);
+
+            if (!tour) {
+                alert("Failed to find a knight's tour from this starting position. Trying again...");
+                resetBoard();
+                return;
+            }
+
+            updateBoard(currentStep);
+        }
+
+        // Initialize the application
+        function init() {
+            initializeBoard();
+
+            document.getElementById('playPauseBtn').addEventListener('click', toggleAnimation);
+            document.getElementById('resetBtn').addEventListener('click', resetBoard);
+
+            resetBoard();
+        }
+
+        // Start the application when the page loads
+        window.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>
