@@ -1,353 +1,397 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Knight's Tour Visualization</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            padding: 20px;
-        }
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Knight's Tour Visualization</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      background-color: #f5f5f5;
+    }
+    
+    h1 {
+      margin-bottom: 20px;
+    }
+    
+    .controls {
+      margin-bottom: 20px;
+      display: flex;
+      gap: 10px;
+    }
+    
+    button {
+      padding: 10px 20px;
+      font-size: 16px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      color: white;
+    }
+    
+    .play-button {
+      background-color: #4CAF50;
+    }
+    
+    .pause-button {
+      background-color: #F9A825;
+    }
+    
+    .reset-button {
+      background-color: #F44336;
+    }
+    
+    .board-container {
+      position: relative;
+      width: 400px;
+      height: 400px;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    }
+    
+    .status {
+      margin-top: 20px;
+      text-align: center;
+    }
+    
+    .error-message {
+      color: #F44336;
+      margin-top: 10px;
+    }
 
-        .controls {
-            margin-bottom: 20px;
-        }
-
-        button {
-            padding: 8px 16px;
-            margin: 0 10px;
-            font-size: 16px;
-            cursor: pointer;
-            background-color: #4CAF50;
-            color: white;
-            border: none;
-            border-radius: 4px;
-        }
-
-        button:hover {
-            background-color: #45a049;
-        }
-
-        #chessboard {
-            display: grid;
-            grid-template-columns: repeat(8, 60px);
-            grid-template-rows: repeat(8, 60px);
-            gap: 1px;
-            border: 2px solid #333;
-            position: relative;
-        }
-
-        .square {
-            width: 60px;
-            height: 60px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            font-size: 14px;
-            font-weight: bold;
-            position: relative;
-            box-sizing: border-box;
-        }
-
-        .square.light {
-            background-color: #f0d9b5;
-        }
-
-        .square.dark {
-            background-color: #b58863;
-        }
-
-        .square.visited.light {
-            background-color: #90ee90;
-        }
-
-        .square.visited.dark {
-            background-color: #4CAF50; /* Match button color */
-        }
-
-
-        .square.current {
-            background-color: rgba(255, 215, 0, 0.7);
-        }
-
-        .arrow {
-            position: absolute;
-            pointer-events: none;
-            z-index: 10;
-            opacity: 0.7;
-        }
-
-        .arrow-line {
-            position: absolute;
-            background-color: rgba(200, 0, 0, 0.7);
-            transform-origin: 0 0;
-            height: 2px;
-            z-index: 1;
-        }
-
-        .arrow-head {
-        }
-
-        .step-number {
-            position: absolute;
-            top: 2px;
-            left: 2px;
-            font-size: 10px;
-            color: #333;
-        }
-    </style>
+  </style>
 </head>
 <body>
-    <h1>Knight's Tour Visualization</h1>
-
-    <div class="controls">
-        <button id="playPauseBtn">Play</button>
-        <button id="resetBtn">Reset</button>
-    </div>
-
-    <div id="chessboard"></div>
-
-    <script>
-        const boardSize = 8;
-        const totalSquares = boardSize * boardSize;
-        let tour = [];
-        let currentStep = 0;
-        let animationInterval = null;
-        let animationSpeed = 500; // ms per step
-
-        // Initialize the board
-        function initializeBoard() {
-            const chessboard = document.getElementById('chessboard');
-            chessboard.innerHTML = '';
-
-            // Remove any existing arrows
-            document.querySelectorAll('.arrow').forEach(el => el.remove());
-
-            for (let row = 0; row < boardSize; row++) {
-                for (let col = 0; col < boardSize; col++) {
-                    const square = document.createElement('div');
-                    const squareNumber = row * boardSize + col;
-                    square.className = `square ${(row + col) % 2 === 0 ? 'light' : 'dark'}`;
-                    square.id = `square-${squareNumber}`;
-                    square.textContent = '';
-
-                    const stepNumber = document.createElement('div');
-                    stepNumber.className = 'step-number';
-                    stepNumber.textContent = squareNumber;
-                    square.appendChild(stepNumber);
-
-                    chessboard.appendChild(square);
-                }
+  <h1>Knight's Tour Visualization</h1>
+  
+  <div class="controls">
+    <button id="playButton" class="play-button">Play</button>
+    <button id="resetButton" class="reset-button">Reset</button>
+  </div>
+  
+  <div class="board-container">
+    <svg id="chessboard" width="400" height="400" viewBox="0 0 400 400"></svg>
+  </div>
+  
+  <div class="status">
+    <p id="stepCounter">Press Play to start</p>
+    <p id="errorMessage" class="error-message"></p>
+  </div>
+  
+  <script>
+    (function() {
+      // DOM elements
+      const chessboard = document.getElementById('chessboard');
+      const playButton = document.getElementById('playButton');
+      const resetButton = document.getElementById('resetButton');
+      const stepCounter = document.getElementById('stepCounter');
+      const errorMessage = document.getElementById('errorMessage');
+      
+      // Game state
+      let tourPath = [];
+      let currentStep = -1;
+      let isPlaying = false;
+      let animationTimer = null;
+      const animationSpeed = 800; // ms between moves
+      
+      // Board coordinates
+      const START_POS = 0;  // Top-left (0,0)
+      const END_POS = 7;    // Top-right (0,7)
+      
+      // Initialize the board
+      function initializeBoard() {
+        chessboard.innerHTML = '';
+        
+        // Create the chessboard squares
+        for (let row = 0; row < 8; row++) {
+          for (let col = 0; col < 8; col++) {
+            const isEven = (row + col) % 2 === 0;
+            const pos = row * 8 + col;
+            
+            const square = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+            square.setAttribute("x", col * 50);
+            square.setAttribute("y", row * 50);
+            square.setAttribute("width", 50);
+            square.setAttribute("height", 50);
+            square.setAttribute("fill", isEven ? "#f0d9b5" : "#b58863");
+            square.setAttribute("id", `square-${pos}`);
+            
+            chessboard.appendChild(square);
+          }
+        }
+        
+        // Calculate the tour path using Warnsdorff's algorithm
+        tourPath = findKnightsTour(START_POS, END_POS);
+        
+        // Initial call, sets up board without drawing the knight's path.
+        updateUI(false); // false prevents drawing numbers on initial board
+      }
+      
+      // Convert position to row and column
+      function posToRowCol(pos) {
+        return [Math.floor(pos / 8), pos % 8];
+      }
+      
+      // Calculate valid knight moves
+      function getValidMoves(pos, visited) {
+        const row = Math.floor(pos / 8);
+        const col = pos % 8;
+        
+        const moves = [
+          [row - 2, col - 1], [row - 2, col + 1],
+          [row - 1, col - 2], [row - 1, col + 2],
+          [row + 1, col - 2], [row + 1, col + 2],
+          [row + 2, col - 1], [row + 2, col + 1]
+        ];
+        
+        return moves
+          .filter(([r, c]) => {
+            if (r < 0 || r >= 8 || c < 0 || c >= 8) return false;
+            const newPos = r * 8 + c;
+            return !visited.has(newPos);
+          })
+          .map(([r, c]) => r * 8 + c);
+      }
+      
+      // Modified Warnsdorff's algorithm implementation
+      function findKnightsTour(startPos, targetPos) {
+        // Use a recursive function with backtracking
+        const path = [];
+        const visited = new Set();
+        
+        function findPathRecursive(currentPos, moveCount) {
+          // Add current position to path and mark as visited
+          path.push(currentPos);
+          visited.add(currentPos);
+          
+          // If this is the target square and we've visited many squares, we're done
+          if (currentPos === targetPos && moveCount >= 63) {
+            return true;
+          }
+          
+          // Get all valid moves from current position
+          const validMoves = getValidMoves(currentPos, visited);
+          
+          // If we found the target and it's in our valid moves and we've visited most squares
+          if (moveCount >= 62 && validMoves.includes(targetPos)) {
+            path.push(targetPos);
+            return true;
+          }
+          
+          // Sort moves using Warnsdorff's heuristic (fewer onward moves first)
+          const sortedMoves = validMoves.map(move => {
+            const tempVisited = new Set(visited);
+            tempVisited.add(move);
+            const onwardMoves = getValidMoves(move, tempVisited).length;
+            return { move, onwardMoves };
+          }).sort((a, b) => {
+            // Priority to target square when near the end
+            if (moveCount >= 60) {
+              if (a.move === targetPos) return -1;
+              if (b.move === targetPos) return 1;
             }
+            return a.onwardMoves - b.onwardMoves;
+          });
+          
+          // Try each move
+          for (const { move } of sortedMoves) {
+            if (findPathRecursive(move, moveCount + 1)) {
+              return true;
+            }
+          }
+          
+          // If no solution found, backtrack
+          path.pop();
+          visited.delete(currentPos);
+          return false;
+        }
+        
+        // Start the recursive search
+        findPathRecursive(startPos, 0);
+        
+        return path;
+      }
+      
+      // Get the center coordinates of a square
+      function getSquareCenter(pos) {
+        const [row, col] = posToRowCol(pos);
+        return {
+          x: col * 50 + 25,
+          y: row * 50 + 30
+        };
+      }
+      
+      // Update the UI based on current state
+      function updateUI(drawNumbers = true) { // added drawNumbers parameter
+        // Clear previous highlights and numbers, and arrows
+        document.querySelectorAll('[id^="highlight-"], [id^="text-"], [id^="arrow-"]').forEach(el => {
+          if (el) el.remove();
+        });
+        
+        // Draw visited squares
+        for (let i = 0; i <= currentStep; i++) {
+          const pos = tourPath[i];
+          const [row, col] = posToRowCol(pos);
+          
+          const highlightRect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+          highlightRect.setAttribute("id", `highlight-${pos}`);
+          highlightRect.setAttribute("x", col * 50);
+          highlightRect.setAttribute("y", row * 50);
+          highlightRect.setAttribute("width", 50);
+          highlightRect.setAttribute("height", 50);
+          // Make highlight more dominant and change to orange, only for current step:
+          highlightRect.setAttribute("fill", i === currentStep ? "rgba(255, 165, 0, 0.8)" : "rgba(0, 200, 0, 0.3)"); // Increased opacity, orange
+          
+          chessboard.appendChild(highlightRect);
+        }
+        
+        // Draw arrows between steps
+        for (let i = 0; i < currentStep; i++) {
+          const fromPos = tourPath[i];
+          const toPos = tourPath[i + 1];
+          
+          const fromCenter = getSquareCenter(fromPos);
+          const toCenter = getSquareCenter(toPos);
+          
+          // Calculate the angle of the arrow
+          const angle = Math.atan2(toCenter.y - fromCenter.y, toCenter.x - fromCenter.x);
+          
+          // Arrow line
+          const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+          line.setAttribute("id", `arrow-line-${i}`);
+          line.setAttribute("x1", fromCenter.x);
+          line.setAttribute("y1", fromCenter.y);
+          line.setAttribute("x2", toCenter.x);
+          line.setAttribute("y2", toCenter.y);
+          line.setAttribute("stroke", "rgba(255, 0, 0, 0.6)");
+          line.setAttribute("stroke-width", 2);
+          
+          chessboard.appendChild(line);
+          
+          // Arrow head
+          const arrowHeadLength = 10;
+          const arrowHeadAngle = Math.PI / 6;
+          
+          const arrowHead = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+          arrowHead.setAttribute("id", `arrow-head-${i}`);
+          
+          const point1 = toCenter;
+          const point2 = {
+            x: toCenter.x - arrowHeadLength * Math.cos(angle - arrowHeadAngle),
+            y: toCenter.y - arrowHeadLength * Math.sin(angle - arrowHeadAngle)
+          };
+          const point3 = {
+            x: toCenter.x - arrowHeadLength * Math.cos(angle + arrowHeadAngle),
+            y: toCenter.y - arrowHeadLength * Math.sin(angle + arrowHeadAngle)
+          };
+          
+          arrowHead.setAttribute("points", `${point1.x},${point1.y} ${point2.x},${point2.y} ${point3.x},${point3.y}`);
+          arrowHead.setAttribute("fill", "rgba(255, 0, 0, 0.8)");
+          
+          chessboard.appendChild(arrowHead);
         }
 
-        // Find a knight's tour using Warnsdorff's algorithm
-        function findKnightTour(start) {
-            const board = Array(boardSize).fill().map(() => Array(boardSize).fill(-1));
-            const moves = [
-                [2, 1], [1, 2], [-1, 2], [-2, 1],
-                [-2, -1], [-1, -2], [1, -2], [2, -1]
-            ];
-
-            let current = start;
-            let step = 0;
-            board[current[0]][current[1]] = step++;
-
-            while (step < totalSquares) {
-                const [x, y] = current;
-                const nextMoves = [];
-
-                // Find all possible next moves
-                for (const [dx, dy] of moves) {
-                    const nx = x + dx;
-                    const ny = y + dy;
-
-                    if (nx >= 0 && nx < boardSize && ny >= 0 && ny < boardSize && board[nx][ny] === -1) {
-                        // Count the number of possible moves from this next position
-                        let count = 0;
-                        for (const [ndx, ndy] of moves) {
-                            const nnx = nx + ndx;
-                            const nny = ny + ndy;
-                            if (nnx >= 0 && nnx < boardSize && nny >= 0 && nny < boardSize && board[nnx][nny] === -1) {
-                                count++;
-                            }
-                        }
-                        nextMoves.push({ x: nx, y: ny, count });
-                    }
-                }
-
-                if (nextMoves.length === 0) {
-                    // No valid moves, tour failed
-                    return null;
-                }
-
-                // Sort by the number of onward moves (Warnsdorff's rule)
-                nextMoves.sort((a, b) => a.count - b.count);
-
-                // Choose the move with the fewest onward options
-                const next = nextMoves[0];
-                board[next.x][next.y] = step++;
-                current = [next.x, next.y];
-            }
-
-            // Convert board to a linear sequence
-            const sequence = [];
-            for (let i = 0; i < totalSquares; i++) {
-                for (let x = 0; x < boardSize; x++) {
-                    for (let y = 0; y < boardSize; y++) {
-                        if (board[x][y] === i) {
-                            sequence.push(x * boardSize + y);
-                        }
-                    }
-                }
-            }
-
-            return sequence;
-        }
-
-        // Draw an arrow between two squares
-        function drawArrow(from, to, step) {
-            const fromElement = document.getElementById(`square-${from}`);
-            const toElement = document.getElementById(`square-${to}`);
-
-            if (!fromElement || !toElement) return;
-
-            const fromRect = fromElement.getBoundingClientRect();
-            const toRect = toElement.getBoundingClientRect();
-            const chessboardRect = document.getElementById('chessboard').getBoundingClientRect();
-
-            const fromX = fromRect.left + fromRect.width / 2 - chessboardRect.left;
-            const fromY = fromRect.top + fromRect.height / 2 - chessboardRect.top;
-            const toX = toRect.left + toRect.width / 2 - chessboardRect.left;
-            const toY = toRect.top + toRect.height / 2 - chessboardRect.top;
-
-            // Create arrow container
-            const arrow = document.createElement('div');
-            arrow.className = 'arrow';
-            arrow.id = `arrow-${step}`;
-
-            // Calculate line length and angle
-            const length = Math.sqrt(Math.pow(toX - fromX, 2) + Math.pow(toY - fromY, 2));
-            const angle = Math.atan2(toY - fromY, toX - fromX) * 180 / Math.PI;
-
-            // Create line
-            const line = document.createElement('div');
-            line.className = 'arrow-line';
-            line.style.width = `${length}px`;
-            line.style.left = `${fromX}px`;
-            line.style.top = `${fromY}px`;
-            line.style.transform = `rotate(${angle}deg)`;
-
-            arrow.appendChild(line);
-            document.getElementById('chessboard').appendChild(arrow);
-        }
-
-        // Update the board visualization to a specific step
-        function updateBoard(step) {
-            // Clear all visited and current classes
-            document.querySelectorAll('.square').forEach(sq => {
-                sq.classList.remove('visited', 'current');
-                sq.textContent = '';
-            });
-
-            // Remove all arrows
-            document.querySelectorAll('.arrow').forEach(el => el.remove());
-
-            // Update squares up to the current step
-            for (let i = 0; i <= step && i < tour.length; i++) {
-                const square = document.getElementById(`square-${tour[i]}`);
-                if (square) {
-                    square.classList.add('visited');
-                    if (square.classList.contains('light')) {
-                        square.classList.add('light');
-                    }
-                    else {
-                        square.classList.add('dark');
-                    }
-
-                    square.textContent = i;
-
-                    // Draw line from previous square
-                    if (i > 0) {
-                        drawArrow(tour[i - 1], tour[i], i);
-                    }
-                }
-            }
-
-            // Highlight current square
-            if (step < tour.length) {
-                const currentSquare = document.getElementById(`square-${tour[step]}`);
-                if (currentSquare) {
-                    currentSquare.classList.add('current');
-                }
+        // Draw numbers, but only if drawNumbers is true
+        if (drawNumbers) {
+            for (let i = 0; i <= currentStep; i++) { // Loop through steps
+                const pos = tourPath[i];
+                const [row, col] = posToRowCol(pos);
+    
+                const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+                text.setAttribute("id", `text-${pos}`);
+                text.setAttribute("x", col * 50 + 25);
+                text.setAttribute("y", row * 50 + 30);
+                text.setAttribute("text-anchor", "middle");
+                text.setAttribute("font-weight", "bold");
+                text.setAttribute("font-size", "16");
+                text.setAttribute("fill",  "black");
+                text.textContent = i;
+    
+                chessboard.appendChild(text);
             }
         }
-
-        // Start or pause the animation
-        function toggleAnimation() {
-            const playPauseBtn = document.getElementById('playPauseBtn');
-
-            if (animationInterval) {
-                clearInterval(animationInterval);
-                animationInterval = null;
-                playPauseBtn.textContent = 'Play';
-            } else {
-                playPauseBtn.textContent = 'Pause';
-
-                // If we've reached the end, start over
-                if (currentStep >= tour.length - 1) {
-                    currentStep = 0;
-                }
-
-                animationInterval = setInterval(() => {
-                    if (currentStep < tour.length - 1) {
-                        currentStep++;
-                        updateBoard(currentStep);
-                    } else {
-                        clearInterval(animationInterval);
-                        playPauseBtn.textContent = 'Play';
-                    }
-                }, animationSpeed);
-            }
+        
+        // Update step counter
+        if (currentStep >= 0) {
+          stepCounter.textContent = `Step: ${currentStep} of ${tourPath.length - 1}`;
+        } else {
+          stepCounter.textContent = 'Press Play to start';
         }
-
-        // Reset the board to initial state
-        function resetBoard() {
-            clearInterval(animationInterval);
-            animationInterval = null;
-            document.getElementById('playPauseBtn').textContent = 'Play';
-
-            currentStep = 0;
-            initializeBoard();
-
-            // Find a new tour starting from square 0 (top-left corner)
-            tour = findKnightTour([0, 0]);
-
-            if (!tour) {
-                alert("Failed to find a knight's tour from this starting position. Trying again...");
-                resetBoard();
-                return;
-            }
-
-            updateBoard(currentStep);
+        
+        // Update play button text
+        if (isPlaying) {
+          playButton.textContent = 'Pause';
+          playButton.className = 'pause-button';
+        } else {
+          if (currentStep === tourPath.length - 1) {
+            playButton.textContent = 'Restart';
+          } else {
+            playButton.textContent = 'Play';
+          }
+          playButton.className = 'play-button';
         }
-
-        // Initialize the application
-        function init() {
-            initializeBoard();
-
-            document.getElementById('playPauseBtn').addEventListener('click', toggleAnimation);
-            document.getElementById('resetBtn').addEventListener('click', resetBoard);
-
-            resetBoard();
+        
+        // Show error message if complete tour not found
+        if (tourPath.length < 64 && currentStep === tourPath.length - 1) {
+          errorMessage.textContent = `Note: A complete tour of all 64 squares was not found with this algorithm. The tour visited ${tourPath.length} squares.`;
+        } else {
+          errorMessage.textContent = '';
         }
-
-        // Start the application when the page loads
-        window.addEventListener('DOMContentLoaded', init);
-    </script>
+      }
+      
+      // Advance to next step
+      function nextStep() {
+        if (currentStep < tourPath.length - 1) {
+          currentStep++;
+          updateUI(); // defaults to true, draws numbers
+          
+          if (currentStep < tourPath.length - 1 && isPlaying) {
+            animationTimer = setTimeout(nextStep, animationSpeed);
+          } else if (currentStep >= tourPath.length - 1) {
+            isPlaying = false;
+            updateUI(); // defaults to true, draws numbers
+          }
+        }
+      }
+      
+      // Reset the game
+      function resetGame() {
+        clearTimeout(animationTimer);
+        currentStep = -1;
+        isPlaying = false;
+        initializeBoard(); // This will call updateUI(false) internally
+      }
+      
+      // Toggle play/pause
+      function togglePlay() {
+        if (currentStep >= tourPath.length - 1) {
+          resetGame();
+          isPlaying = true;
+          nextStep();
+        } else {
+          isPlaying = !isPlaying;
+          
+          if (isPlaying) {
+            nextStep();
+          } else {
+            clearTimeout(animationTimer);
+          }
+          
+          updateUI(); // defaults to true, draws numbers
+        }
+      }
+      
+      // Event listeners
+      playButton.addEventListener('click', togglePlay);
+      resetButton.addEventListener('click', resetGame);
+      
+      // Initialize the game
+      initializeBoard(); //initializes and calls updateUI(false)
+    })();
+  </script>
 </body>
 </html>
