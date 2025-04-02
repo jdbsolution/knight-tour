@@ -8,9 +8,13 @@ This repository provides an implementation of the Knight's Tour problem using a 
 
 ## Live Demo Page
 
+### Open Tour
+
 https://jdbsolution.github.io/knight-tour/
 
 ### Closed Tour
+
+The knight's final move must land on a square that can legally return to the starting square.
 
 https://jdbsolution.github.io/knight-tour/closed.html
 
