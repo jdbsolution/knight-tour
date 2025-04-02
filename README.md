@@ -10,6 +10,10 @@ This repository provides an implementation of the Knight's Tour problem using a 
 
 https://jdbsolution.github.io/knight-tour/
 
+### Closed Tour
+
+https://jdbsolution.github.io/knight-tour/closed.html
+
 ## Reference
 
 For a detailed explanation of the algorithm and the problem, refer to [this article](https://medium.com/@davidlfliang/intro-python-algorithms-knights-tour-problem-ab0a27a5728c).
