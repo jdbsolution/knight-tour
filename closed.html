@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Knight's Tour Visualization</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --board-size: 480px;
+            --square-size: calc(var(--board-size) / 8);
+            --light-square: #f0d9b5;
+            --dark-square: #b58863;
+            --visited-opacity: 0.3;
+            --arrow-color: rgba(0, 100, 255, 0.6);
+            --arrow-width: 3px;
+            --number-color: #1a1a1a;
+            --error-color: #dc2626;
+            --success-color: #16a34a;
+            --warning-color: #d97706;
+            --info-color: #3b82f6;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            background-color: #f3f4f6;
+            padding: 1rem;
+        }
+
+        .board-container {
+            position: relative;
+            width: var(--board-size);
+            height: var(--board-size);
+            border: 2px solid #333;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            margin-bottom: 1rem;
+        }
+
+        #chessboard {
+            display: grid;
+            grid-template-columns: repeat(8, 1fr);
+            width: 100%;
+            height: 100%;
+        }
+
+        .square {
+            width: var(--square-size);
+            height: var(--square-size);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: calc(var(--square-size) * 0.4);
+            font-weight: bold;
+            color: var(--number-color);
+            position: relative;
+            overflow: hidden;
+            border-radius: 0;
+        }
+
+        .square.visited::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 255, 0, var(--visited-opacity));
+            z-index: 1;
+        }
+
+        .square span {
+            position: relative;
+            z-index: 2;
+            background-color: rgba(255, 255, 255, 0.6);
+            padding: 2px 4px;
+            border-radius: 4px;
+        }
+
+        #arrow-svg {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 3;
+        }
+
+        #arrow-svg line {
+            stroke: var(--arrow-color);
+            stroke-width: var(--arrow-width);
+            stroke-linecap: round;
+            marker-end: url(#arrowhead);
+        }
+
+        .controls {
+            margin-top: 0.5rem;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 1rem;
+        }
+
+        .button {
+            padding: 0.75rem 1.5rem;
+            font-size: 1rem;
+            font-weight: 500;
+            border-radius: 8px;
+            border: none;
+            cursor: pointer;
+            transition: background-color 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        .button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+
+        .button-generate {
+            background-color: #6366f1;
+            color: white;
+        }
+        .button-generate:hover:not(:disabled) {
+            background-color: #4f46e5;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+        }
+
+        .button-play {
+            background-color: #22c55e;
+            color: white;
+        }
+        .button-play:hover:not(:disabled) {
+            background-color: #16a34a;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+        }
+
+        .button-pause {
+            background-color: #f59e0b;
+            color: white;
+        }
+        .button-pause:hover:not(:disabled) {
+            background-color: #d97706;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+        }
+
+        .button-reset {
+            background-color: #ef4444;
+            color: white;
+        }
+        .button-reset:hover:not(:disabled) {
+            background-color: #dc2626;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+        }
+
+        #message-area {
+            margin-top: 1rem;
+            margin-bottom: 1rem;
+            font-weight: 500;
+            min-height: 1.5em;
+            text-align: center;
+            width: 100%;
+        }
+        #message-area.error { color: var(--error-color); }
+        #message-area.success { color: var(--success-color); }
+        #message-area.warning { color: var(--warning-color); }
+        #message-area.info { color: var(--info-color); }
+
+        .speed-control {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .speed-control label {
+            font-weight: 500;
+            color: #4b5563;
+        }
+        .speed-control input {
+            width: 120px;
+        }
+    </style>
+</head>
+<body>
+    <h1 class="text-2xl font-bold mb-4 text-gray-800">Knight's Tour Visualization</h1>
+
+    <div class="board-container">
+        <div id="chessboard"></div>
+        <svg id="arrow-svg">
+            <defs>
+                <marker id="arrowhead" markerWidth="10" markerHeight="7"
+                        refX="9" refY="3.5" orient="auto" markerUnits="strokeWidth">
+                    <polygon points="0 0, 10 3.5, 0 7" fill="var(--arrow-color)" />
+                </marker>
+            </defs>
+        </svg>
+    </div>
+
+    <div id="message-area">Ready. Generate a path to begin.</div>
+
+    <div class="controls">
+        <button id="generateBtn" class="button button-generate">Generate Path</button>
+        <button id="playPauseBtn" class="button button-play" disabled>Play</button>
+        <button id="resetBtn" class="button button-reset">Reset</button>
+    </div>
+
+    <div class="speed-control mt-2">
+        <label for="speedSlider">Animation Speed:</label>
+        <input type="range" id="speedSlider" min="50" max="1000" value="200" step="50">
+        <span id="speedValue">200ms</span>
+    </div>
+
+    <script>
+        const boardSize = 8;
+        const totalSquares = boardSize * boardSize;
+        const chessboard = document.getElementById('chessboard');
+        const arrowSvg = document.getElementById('arrow-svg');
+        const generateBtn = document.getElementById('generateBtn');
+        const playPauseBtn = document.getElementById('playPauseBtn');
+        const resetBtn = document.getElementById('resetBtn');
+        const messageArea = document.getElementById('message-area');
+        const speedSlider = document.getElementById('speedSlider');
+        const speedValue = document.getElementById('speedValue');
+
+        // Possible knight moves (dx, dy)
+        const knightMoves = [
+            { dx: 1, dy: 2 }, { dx: 2, dy: 1 },
+            { dx: 2, dy: -1 }, { dx: 1, dy: -2 },
+            { dx: -1, dy: -2 }, { dx: -2, dy: -1 },
+            { dx: -2, dy: 1 }, { dx: -1, dy: 2 }
+        ];
+
+        let knightTourPath = [];
+        let currentStep = 0;
+        let animationInterval = null;
+        let isPlaying = false;
+        let animationSpeed = 200;
+        let pathIsGenerated = false;
+        let backtrackCount = 0;
+
+        // Initialize the board
+        function createBoard() {
+            chessboard.innerHTML = '';
+            arrowSvg.innerHTML = `
+                <defs>
+                    <marker id="arrowhead" markerWidth="10" markerHeight="7"
+                            refX="9" refY="3.5" orient="auto" markerUnits="strokeWidth">
+                        <polygon points="0 0, 10 3.5, 0 7" fill="var(--arrow-color)" />
+                    </marker>
+                </defs>
+            `;
+            for (let i = 0; i < totalSquares; i++) {
+                const square = document.createElement('div');
+                square.classList.add('square');
+                square.dataset.index = i;
+                chessboard.appendChild(square);
+            }
+            applySquareColors();
+        }
+
+        function applySquareColors() {
+            const squares = chessboard.querySelectorAll('.square');
+            squares.forEach((square, index) => {
+                const { row, col } = getCoords(index);
+                if ((row + col) % 2 === 0) {
+                    square.style.backgroundColor = 'var(--light-square)';
+                } else {
+                    square.style.backgroundColor = 'var(--dark-square)';
+                }
+            });
+        }
+
+        function getSquareElement(index) {
+            if (index < 0 || index >= totalSquares) return null;
+            return chessboard.querySelector(`.square[data-index='${index}']`);
+        }
+
+        function getCoords(index) {
+            const row = Math.floor(index / boardSize);
+            const col = index % boardSize;
+            return { row, col };
+        }
+
+        function getIndex(row, col) {
+            return row * boardSize + col;
+        }
+
+        function getSquareCenter(index) {
+            const boardWidth = chessboard.clientWidth || parseInt(getComputedStyle(chessboard).width, 10);
+            if (!boardWidth) return { x: 0, y: 0 };
+            const squareSize = boardWidth / boardSize;
+            const { row, col } = getCoords(index);
+            const x = col * squareSize + squareSize / 2;
+            const y = row * squareSize + squareSize / 2;
+            return { x, y };
+        }
+
+        function setMessage(text, type = 'info') {
+            messageArea.textContent = text;
+            messageArea.className = '';
+            if (type === 'error') messageArea.classList.add('error');
+            else if (type === 'success') messageArea.classList.add('success');
+            else if (type === 'warning') messageArea.classList.add('warning');
+            else messageArea.classList.add('info');
+        }
+
+        // Modified to use the closed tour finder algorithm
+        function generateKnightTourPath(startRow = 0, startCol = 0) {
+            let board = Array(boardSize).fill(null).map(() => Array(boardSize).fill(-1));
+            let path = [];
+            backtrackCount = 0;
+
+            board[startRow][startCol] = 0;
+            path.push(getIndex(startRow, startCol));
+
+            function getKnightMoves(x, y) {
+                return [
+                    { x: x + 2, y: y + 1 }, { x: x + 2, y: y - 1 },
+                    { x: x - 2, y: y + 1 }, { x: x - 2, y: y - 1 },
+                    { x: x + 1, y: y + 2 }, { x: x + 1, y: y - 2 },
+                    { x: x - 1, y: y + 2 }, { x: x - 1, y: y - 2 }
+                ];
+            }
+
+            function isSafe(x, y) {
+                return x >= 0 && x < boardSize && y >= 0 && y < boardSize && board[x][y] === -1;
+            }
+
+            function countPossibleMoves(x, y) {
+                return getKnightMoves(x, y).filter(move => isSafe(move.x, move.y)).length;
+            }
+
+            function dfsKnightTour(x, y, moveNumber) {
+                if (moveNumber === totalSquares - 1) {
+                    // Check if the last move can return to start
+                    const possibleMoves = getKnightMoves(x, y);
+                    if (possibleMoves.some(move => move.x === 0 && move.y === 0)) {
+                        return true;
+                    }
+                    return false;
+                }
+
+                const moves = getKnightMoves(x, y);
+                const validMovesWithCounts = moves
+                    .filter(move => isSafe(move.x, move.y))
+                    .map(move => ({
+                        ...move,
+                        count: countPossibleMoves(move.x, move.y)
+                    }))
+                    .sort((a, b) => a.count - b.count);
+
+                for (const move of validMovesWithCounts) {
+                    board[move.x][move.y] = moveNumber + 1;
+                    path.push(getIndex(move.x, move.y));
+
+                    if (dfsKnightTour(move.x, move.y, moveNumber + 1)) {
+                        return true;
+                    }
+
+                    board[move.x][move.y] = -1;
+                    path.pop();
+                    backtrackCount++;
+                }
+                return false;
+            }
+
+            if (dfsKnightTour(startRow, startCol, 0)) {
+                return path;
+            }
+            return null;
+        }
+
+        function isValidKnightMove(idx1, idx2) {
+            if (idx1 === idx2) return false;
+            const coords1 = getCoords(idx1);
+            const coords2 = getCoords(idx2);
+            const dx = Math.abs(coords1.col - coords2.col);
+            const dy = Math.abs(coords1.row - coords2.row);
+            return (dx === 1 && dy === 2) || (dx === 2 && dy === 1);
+        }
+
+        function verifyGeneratedPath(path) {
+            if (!path || path.length !== totalSquares) return false;
+            if (path[0] !== 0) return false;
+            const visited = new Set();
+            for(let i = 0; i < path.length; i++) {
+                if (visited.has(path[i])) return false;
+                visited.add(path[i]);
+                if (i > 0 && !isValidKnightMove(path[i-1], path[i])) return false;
+            }
+            return visited.size === totalSquares;
+        }
+
+        function updateBoard(step) {
+            if (!pathIsGenerated || step < 0 || step >= knightTourPath.length) return;
+
+            const currentSquareIndex = knightTourPath[step];
+            const currentSquare = getSquareElement(currentSquareIndex);
+            if (!currentSquare) return;
+
+            currentSquare.innerHTML = `<span>${step}</span>`;
+            currentSquare.classList.add('visited');
+
+            if (step > 0) {
+                const prevSquareIndex = knightTourPath[step - 1];
+                const prevSquare = getSquareElement(prevSquareIndex);
+                if (!prevSquare) return;
+
+                const startPoint = getSquareCenter(prevSquareIndex);
+                const endPoint = getSquareCenter(currentSquareIndex);
+                const dx = endPoint.x - startPoint.x;
+                const dy = endPoint.y - startPoint.y;
+                const dist = Math.sqrt(dx*dx + dy*dy);
+                const offsetRatio = dist > 0 ? 10 / dist : 0;
+                const adjustedEndX = endPoint.x - dx * offsetRatio;
+                const adjustedEndY = endPoint.y - dy * offsetRatio;
+
+                const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                line.setAttribute('x1', startPoint.x);
+                line.setAttribute('y1', startPoint.y);
+                line.setAttribute('x2', adjustedEndX);
+                line.setAttribute('y2', adjustedEndY);
+                line.setAttribute('marker-end', 'url(#arrowhead)');
+                arrowSvg.appendChild(line);
+            }
+        }
+
+        function animateStep() {
+            if (currentStep < knightTourPath.length) {
+                updateBoard(currentStep);
+                currentStep++;
+            } else {
+                pauseAnimation();
+                playPauseBtn.disabled = true;
+                setMessage(`Closed tour complete! Ended at square ${knightTourPath[knightTourPath.length - 1]}. Backtracks: ${backtrackCount}`, 'success');
+            }
+        }
+
+        function playAnimation() {
+            if (isPlaying || !pathIsGenerated) return;
+            if (currentStep >= knightTourPath.length) return;
+
+            isPlaying = true;
+            playPauseBtn.textContent = 'Pause';
+            playPauseBtn.classList.remove('button-play');
+            playPauseBtn.classList.add('button-pause');
+            setMessage('Animation playing...', 'success');
+
+            if (currentStep === 0) animateStep();
+            animationInterval = setInterval(animateStep, animationSpeed);
+        }
+
+        function pauseAnimation() {
+            if (!isPlaying) return;
+            isPlaying = false;
+            playPauseBtn.textContent = 'Play';
+            playPauseBtn.classList.remove('button-pause');
+            playPauseBtn.classList.add('button-play');
+            clearInterval(animationInterval);
+            animationInterval = null;
+            if (pathIsGenerated && currentStep < knightTourPath.length) {
+                setMessage('Animation paused.', 'warning');
+            }
+        }
+
+        function resetVisualization() {
+            pauseAnimation();
+            currentStep = 0;
+            createBoard();
+            playPauseBtn.textContent = 'Play';
+            playPauseBtn.classList.remove('button-pause');
+            playPauseBtn.classList.add('button-play');
+            playPauseBtn.disabled = !pathIsGenerated;
+        }
+
+        function resetAll() {
+            resetVisualization();
+            knightTourPath = [];
+            pathIsGenerated = false;
+            playPauseBtn.disabled = true;
+            generateBtn.disabled = false;
+            setMessage('Ready. Generate a path to begin.', 'info');
+        }
+
+        // Event listeners
+        generateBtn.addEventListener('click', () => {
+            resetAll();
+            setMessage('Generating closed tour... (this may take a moment)', 'info');
+            generateBtn.disabled = true;
+
+            setTimeout(() => {
+                const startTime = performance.now();
+                const generatedPath = generateKnightTourPath(0, 0);
+                const endTime = performance.now();
+                const duration = ((endTime - startTime) / 1000).toFixed(2);
+
+                if (generatedPath && verifyGeneratedPath(generatedPath)) {
+                    knightTourPath = generatedPath;
+                    pathIsGenerated = true;
+                    playPauseBtn.disabled = false;
+                    setMessage(`Closed tour generated in ${duration}s with ${backtrackCount} backtracks! Ready to play.`, 'success');
+                } else {
+                    setMessage(`Failed to generate a valid closed tour after ${duration}s. Please try again.`, 'error');
+                    generateBtn.disabled = false;
+                }
+            }, 50);
+        });
+
+        playPauseBtn.addEventListener('click', () => {
+            if (!pathIsGenerated) return;
+            if (isPlaying) {
+                pauseAnimation();
+            } else {
+                playAnimation();
+            }
+        });
+
+        resetBtn.addEventListener('click', resetAll);
+
+        speedSlider.addEventListener('input', () => {
+            animationSpeed = parseInt(speedSlider.value);
+            speedValue.textContent = `${animationSpeed}ms`;
+            if (isPlaying) {
+                pauseAnimation();
+                playAnimation();
+            }
+        });
+
+        // Initial setup
+        createBoard();
+    </script>
+</body>
+</html>
