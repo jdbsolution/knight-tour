@@ -14,7 +14,7 @@ https://jdbsolution.github.io/knight-tour/
 
 ### Closed Tour
 
-The knight's final move must land on a square that can legally return to the starting square.
+The knight's final move (step 63) must land on a square that can legally return to the starting square.
 
 https://jdbsolution.github.io/knight-tour/closed.html
 
